@@ -1,0 +1,89 @@
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+index aae05f126bda0..18735f975ae67 100644
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.cc
+@@ -1677,8 +1677,10 @@ void WebGLRenderingContextBase::FinalizeFrame(FlushReason) {
+ 
+ void WebGLRenderingContextBase::OnErrorMessage(const char* message,
+                                                int32_t id) {
+-  if (synthesized_errors_to_console_)
++  if (synthesized_errors_to_console_){
++    this->runtimeMessage_ = String(message);
+     PrintGLErrorToConsole(message);
++  }
+   NotifyWebGLErrorOrWarning(message);
+ }
+ 
+@@ -4204,6 +4206,13 @@ String WebGLRenderingContextBase::getShaderSource(WebGLShader* shader) {
+   return EnsureNotNull(shader->Source());
+ }
+ 
++String WebGLRenderingContextBase::getRuntimeMessage() {
++  String ret =  EnsureNotNull(this->runtimeMessage_);
++  this->runtimeMessage_ = "";
++
++  return ret;
++}
++
+ std::optional<Vector<String>>
+ WebGLRenderingContextBase::getSupportedExtensions() {
+   if (isContextLost())
+@@ -8913,10 +8922,15 @@ void WebGLRenderingContextBase::SynthesizeGLError(
+     const char* function_name,
+     const char* description,
+     ConsoleDisplayPreference display) {
++  
+   String error_type = GetErrorString(error);
++  String message = String("WebGL: ") + error_type + ": " +
++    String(function_name) + ": " + String(description);
++
++  this->runtimeMessage_ = message;
+   if (synthesized_errors_to_console_ && display == kDisplayInConsole) {
+-    String message = String("WebGL: ") + error_type + ": " +
+-                     String(function_name) + ": " + String(description);
++    // String message = String("WebGL: ") + error_type + ": " +
++    //                  String(function_name) + ": " + String(description);
+     PrintGLErrorToConsole(message);
+   }
+   if (!isContextLost()) {
+@@ -8934,6 +8948,7 @@ void WebGLRenderingContextBase::EmitGLWarning(const char* function_name,
+   if (synthesized_errors_to_console_) {
+     String message =
+         String("WebGL: ") + String(function_name) + ": " + String(description);
++    this->runtimeMessage_ = message;
+     PrintGLErrorToConsole(message);
+   }
+   NotifyWebGLWarning();
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h
+index ae82830dcf56d..7fdfa630e800e 100644
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.h
+@@ -334,6 +334,7 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
+   WebGLShaderPrecisionFormat* getShaderPrecisionFormat(GLenum shader_type,
+                                                        GLenum precision_type);
+   String getShaderSource(WebGLShader*);
++  String getRuntimeMessage();
+   std::optional<Vector<String>> getSupportedExtensions();
+   virtual ScriptValue getTexParameter(ScriptState*,
+                                       GLenum target,
+@@ -692,6 +693,8 @@ class MODULES_EXPORT WebGLRenderingContextBase : public CanvasRenderingContext,
+   static constexpr size_t kMaximumSupportedArrayBufferSize =
+       ::partition_alloc::internal::MaxDirectMapped();
+ 
++  String runtimeMessage_;
++  
+  protected:
+   // WebGL object types.
+   friend class WebGLContextObject;
+diff --git a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.idl b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.idl
+index 34708029d56bc..69f9bece23a9f 100644
+--- a/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.idl
++++ b/third_party/blink/renderer/modules/webgl/webgl_rendering_context_base.idl
+@@ -568,6 +568,7 @@ interface mixin WebGLRenderingContextBase {
+     [HighEntropy, MeasureAs=WebGLRenderingContextGetShaderPrecisionFormat] WebGLShaderPrecisionFormat getShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype);
+ 
+     DOMString?   getShaderSource(WebGLShader shader);
++    DOMString?   getRuntimeMessage();
+ 
+     [HighEntropy=Direct, Measure] sequence<DOMString>? getSupportedExtensions();
+ 
