@@ -1,0 +1,5 @@
+command:['.\\WebGLFuzzer.py', '--random_seed', '3111', '--exec_conf', '.\\exec_chrome.ini', '--workdir', '.\\workdir\\', '--seeddir', '.\\seeddir\\']
+executors:[<Executor, name: chrome_customized, browserName:chrome, remote:False, master: True >]
+seed_dir:C:\Users\andro\Documents\Chromium\tools\GLeeFuzz\fuzzer\seeddir
+random_seed:3111
+trace:False

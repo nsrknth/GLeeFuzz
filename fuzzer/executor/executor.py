@@ -25,6 +25,8 @@ import concurrent.futures
 import time
 from selenium import webdriver
 
+from selenium.webdriver.chrome.service import Service
+
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
@@ -96,6 +98,19 @@ class WebGLExecutor(object):
         return True
 
     def __new_browser(self, **kwargs):
+
+        chrome_driver_path = "C:\\Users\\andro\\Documents\\Chromium\\tools\\GLeeFuzz\\chromedriver-win64\\chromedriver.exe"
+
+        # if self.webdriver_instance != None:
+        #     while True:
+        try:
+            logger.debug("trying to kill browser")
+            self.webdriver_instance.quit()
+            self.webdriver_instance.stop_client()
+            self.webdriver_instance = None
+        except:
+            pass;
+
         if not self.remote:
             if self.browser_name == "firefox":
                 self.webdriver_instance = webdriver.Firefox(executable_path=GeckoDriverManager().install(),
@@ -104,8 +119,19 @@ class WebGLExecutor(object):
                 if "NOT_USE_WDM" in os.environ:
                     self.webdriver_instance = webdriver.Chrome(options=self.options, **kwargs)
                 else:
-                    self.webdriver_instance = webdriver.Chrome(ChromeDriverManager().install(),
-                                                               options=self.options, **kwargs)
+                    service = Service(chrome_driver_path)
+                    chrome_options = self.options
+                    # chrome_options.binary_location = r"C:\Users\andro\chromium\src\out\webgl\chrome.exe"
+                    # chrome_options.add_argument("--disable-dev-shm-usage")
+                    # chrome_options.add_argument('--remote-debugging-port=9222')
+                    timestamp = time.strftime("%Y%m%d-%H%M%S")
+                    user_data_dir = os.path.join(os.getenv('TMP'), f'chrome_user_data_{timestamp}')
+                    os.makedirs(user_data_dir, exist_ok=True)
+                    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
+                    chrome_options.add_argument("--use-angle=vulkan")
+                    self.webdriver_instance = webdriver.Chrome(service=service, options=chrome_options) #, **kwargs)
+                    # self.webdriver_instance = webdriver.Chrome(ChromeDriverManager().install(),
+                                                            #    options=self.options, **kwargs)
             elif self.browser_name == "edge":
                 options = {}
                 if "platform" in self.desired_capabilities and \
@@ -128,7 +154,6 @@ class WebGLExecutor(object):
                                                        options=self.options)
 
         self._load_test_page()
-
 
     def _quit(self):
         '''
@@ -217,7 +242,6 @@ class WebGLExecutor(object):
             self._quit()
         except:
             pass
-
 
     def __str__(self):
         return "<Executor, name: " + self.name + ", browserName:" + \
